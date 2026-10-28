@@ -1,0 +1,17 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {calculatePrice,normalizePersian,tomanToRial,type PriceInput} from '../lib/pricing';
+const base:PriceInput={current:10_000_000,cost:7_000_000,stock:2,matchVerified:true,minimum:0,marginPercent:15,undercut:20_000,maxMovementPercent:20,offers:[{price:10_000_000,available:true}]};
+test('undercuts a valid competitor by explicit Toman amount',()=>assert.equal(calculatePrice(base).price,9_980_000));
+test('uses gross margin formula rather than markup and rounds upward',()=>{const r=calculatePrice({...base,cost:9_000_001,marginPercent:20});assert.equal(r.price,11_250_002);assert.ok(Number(r.margin)>=20);});
+test('blocks uncertain product matches',()=>assert.equal(calculatePrice({...base,matchVerified:false}).status,'REVIEW_REQUIRED'));
+test('requires valid purchase cost',()=>assert.equal(calculatePrice({...base,cost:0}).status,'COST_DATA_REQUIRED'));
+test('pauses out of stock products',()=>assert.equal(calculatePrice({...base,stock:0}).status,'OUT_OF_STOCK'));
+test('ignores unavailable or invalid offers',()=>assert.equal(calculatePrice({...base,offers:[{price:1,available:false},{price:0,available:true}]}).status,'NO_VALID_COMPETITORS'));
+test('protects merchant minimum',()=>assert.equal(calculatePrice({...base,minimum:11_000_000}).price,11_000_000));
+test('conflicting safe floor and maximum movement requires review',()=>assert.equal(calculatePrice({...base,cost:11_000_000,marginPercent:50}).status,'LIMIT_CONFLICT'));
+test('limits downward movement',()=>assert.equal(calculatePrice({...base,cost:1,marginPercent:0,offers:[{price:100,available:true}]}).price,8_000_000));
+test('rejects impossible margin',()=>assert.equal(calculatePrice({...base,marginPercent:100}).status,'INVALID_RULE'));
+test('Toman to Rial is explicit and rejects overflow',()=>{assert.equal(tomanToRial(1490000),14900000);assert.throws(()=>tomanToRial(Number.MAX_SAFE_INTEGER));assert.throws(()=>tomanToRial(1.2));});
+test('normalizes Arabic characters and Persian spacing',()=>assert.equal(normalizePersian('  گوشي كالا  '),'گوشی کالا'));
+test('margin protection invariant across a range of costs',()=>{for(let cost=1;cost<100000;cost+=173){const r=calculatePrice({...base,current:100000,cost,marginPercent:17,maxMovementPercent:50,offers:[{price:120000,available:true}]});if(r.price!==null){assert.ok(r.price>=cost/.83);assert.ok(r.price>=50000&&r.price<=150000);}}});
