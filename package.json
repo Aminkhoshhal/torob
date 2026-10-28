@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "smoke": "node --import tsx scripts/smoke.ts",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "worker": "node --import tsx scripts/import-worker.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.3.14",
